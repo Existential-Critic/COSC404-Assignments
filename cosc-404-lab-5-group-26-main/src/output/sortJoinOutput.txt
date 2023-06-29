@@ -1,0 +1,16 @@
+0,ALGERIA                  ,AFRICA                   
+1,ARGENTINA                ,AMERICA                  
+2,BRAZIL                   ,AMERICA                  
+3,CANADA                   ,AMERICA                  
+18,CHINA                    ,ASIA                     
+5,ETHIOPIA                 ,AFRICA                   
+8,INDIA                    ,ASIA                     
+9,INDONESIA                ,ASIA                     
+12,JAPAN                    ,ASIA                     
+14,KENYA                    ,AFRICA                   
+15,MOROCCO                  ,AFRICA                   
+16,MOZAMBIQUE               ,AFRICA                   
+17,PERU                     ,AMERICA                  
+24,UNITED STATES            ,AMERICA                  
+21,VIETNAM                  ,ASIA                     
+         

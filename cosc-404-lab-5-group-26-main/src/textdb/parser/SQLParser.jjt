@@ -1,0 +1,267 @@
+/**
+ * A simple SQL parser.
+ */
+options
+{
+  JDK_VERSION = "1.6";
+  static = false;
+  MULTI=true;
+  NODE_DEFAULT_VOID=true;
+}
+
+PARSER_BEGIN(SimpleParser)
+
+package textdb.parser;
+
+public class SimpleParser {
+  ASTStart n = null;
+
+  public void parseString() throws Exception {
+      n = Start();
+  }
+
+  public static void main(String args[]) {
+    System.out.println("Reading from standard input...");
+    SimpleParser t = new SimpleParser(System.in);
+    try {
+      SimpleNode n = t.Start();
+      n.dump("");
+      System.out.println("Thank you.");
+    } catch (Exception e) {
+      System.out.println("Oops.");
+      System.out.println(e.getMessage());
+      e.printStackTrace();
+    }
+  }
+
+  public ASTStart gettree() {
+    return n;
+  }
+}
+
+PARSER_END(SimpleParser)
+
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| <"//" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>						/* C-style one line comments */
+| <"--" (~["\n","\r"])* ("\n"|"\r"|"\r\n")>						/* SQL one line comments */
+| <"/*" (~["*"])* "*" (~["/"] (~["*"])* "*")* "/">				/* SQL multiline comments */
+}
+
+/* KEYWORDS */
+TOKEN [IGNORE_CASE] :
+{
+  <SELECT: "select">
+| <FROM: "from">
+| <WHERE: "where">
+| <ORDERBY: "order by" | "orderby">
+| <ASC: "asc">
+| <DESC: "desc">
+| <GROUPBY: "group by" | "groupby">
+| <INNER: "inner">
+| <JOIN: "join">
+| <OPENPAREN: "(">
+| <CLOSEPAREN: ")">
+| <AND: "and">
+| <OR: "or">
+| <NOT: "not">
+| <XOR: "xor">
+| <ON: "on">
+}
+
+
+TOKEN:  /* Literals */
+{
+    <INTEGER_LITERAL:  (["0"-"9"])+ >
+  | <FLOATING_POINT_LITERAL:
+          (["0"-"9"])+ "." (["0"-"9"])+ (<EXPONENT>)?
+        | "." (["0"-"9"])+ (<EXPONENT>)?
+        | (["0"-"9"])+ <EXPONENT>
+        | (["0"-"9"])+ (<EXPONENT>)?
+    >
+  | < #EXPONENT: ["e","E"] (["+","-"])? (["0"-"9"])+ >
+  | < STRING_LITERAL: "'" (~["'"])* ( "''" (~["'"])* )* "'" >
+}
+
+TOKEN : /* IDENTIFIERS */
+{
+  < IDENTIFIER: ( <BASEID > | < DQSTRING > ) ( "." ( <BASEID > | < DQSTRING > ) )* (".*")? >
+|
+  < BASEID: (<LETTER>) (<LETTER>|<DIGIT>)* >
+|
+  < DQSTRING: "\"" (["_","a"-"z","A"-"Z","0"-"9","!","@","#","$","%","^","&","*","(",")","-","+","=","{","}","[","]",":","|",";",".","<",">",",",".","?","/"," ","\t","\n","\r"])* "\"" >
+| 
+  < #LETTER: ["_","a"-"z","A"-"Z"] >
+|
+  < #DIGIT: ["0"-"9"] >
+}
+
+
+
+// Start of production rules
+
+ASTStart Start() #Start : {}
+{
+	SQLQuery() { return jjtThis; }  
+}
+
+/* 
+ SQL SELECT query syntax
+*/
+void SQLQuery() : { }
+{
+	Query()
+}
+
+void Query() : {}
+{
+	Select() [ From() ] [ Where() ]  [ Orderby() ]
+}
+
+void Select() #Select() : {}
+{
+ 	<SELECT> SQLSelectList()  
+}
+
+void SQLSelectList() : {}
+{
+	AdditiveExpression() ( "," AdditiveExpression())*
+}
+
+
+void From() #From(>0) : {}
+{
+	<FROM> FromItem() ( "," FromItem() )*  
+}
+
+
+void FromItem() : {}
+{
+  Identifier() (JoinExpr())*
+}
+
+void JoinExpr() #JoinExpr(): {String s;}
+{ 
+   [<INNER >] < JOIN > FromItem() On()    
+}
+
+void On() #On() : {}
+{
+	<ON> SQLOrExpr()
+}
+
+void Where() #Where(>0) : {}
+{
+  	<WHERE> SQLOrExpr() 
+}
+
+void Orderby() #Orderby(>0) : {}
+{
+	<ORDERBY> AdditiveExpression() [ ASC() | DESC() ] ( "," AdditiveExpression() [ ASC() | DESC() ])* 
+}
+
+void ASC() #ASC : {}
+{
+	<ASC>
+}
+
+void DESC() #DESC : {}
+{
+	<DESC>
+}
+
+/*
+Expression syntax
+*/
+	
+void AdditiveExpression() #Add(>1) : {}
+{
+	MultiplicativeExpression() ( LOOKAHEAD(2) Aop() MultiplicativeExpression() )*  
+}
+
+void Aop() #Aop : {}
+{
+	("+" 		{ jjtThis.setName("+"); }
+     	| "-"	{ jjtThis.setName("-"); } 
+  	)
+}
+
+void Mop() #Mop : {}
+{
+  ("*" 		{ jjtThis.setName("*"); }
+  	| "/" 	{ jjtThis.setName("/"); } 
+  	| "%" 	{ jjtThis.setName("%"); }
+  )
+}
+
+void MultiplicativeExpression() #Mult(>1) : {}
+{
+	SQLTerm() ( LOOKAHEAD(2) Mop() SQLTerm())*  
+}
+
+void SQLTerm() : {}
+{
+  (
+    LOOKAHEAD(2) <OPENPAREN> SQLOrExpr() <CLOSEPAREN> | LOOKAHEAD(2) SQLLiteral()  
+    | LOOKAHEAD(2) Identifier()  
+   )  
+}
+
+
+void SQLOrExpr() #Or(>1) : {}
+{
+  SQLAndExpr() ( <OR> SQLAndExpr() | <XOR> { jjtThis.setType(2); } SQLAndExpr() )*  
+}
+
+void SQLAndExpr() #And(>1) : {}
+{
+  SQLNotExpr() ( <AND> SQLNotExpr())*  
+}
+
+void SQLNotExpr() : {}
+{
+  (Not() | SQLCompareExpr())
+}
+
+void Not() #Not(>0): {}
+{
+  <NOT> SQLCompareExpr() 
+}
+
+void SQLCompareExpr() #Cop(>1) : {Token t;Token u = null;}
+{
+	AdditiveExpression() 
+	[( (t=">" | t=">=" | t="=" | t="<=" | t="<" | t="!=" | t="<>") AdditiveExpression() { String name = t.image; if (u != null) name += u.image; jjtThis.setName(name); } 
+	)]
+}
+
+void SQLLiteral() : {}
+{
+  StringLiteral() | IntLiteral() | FloatLiteral()
+}
+
+void IntLiteral() #Integer : {Token t;}
+{
+  t=<INTEGER_LITERAL> { jjtThis.setName(t.image); }
+}
+
+void FloatLiteral() #Real : {Token t;}
+{
+  t=<FLOATING_POINT_LITERAL> { jjtThis.setName(t.image); }
+}
+
+void StringLiteral() #String : {Token t;}
+{
+  t=<STRING_LITERAL> { jjtThis.setName(t.image); }
+}
+
+Token Identifier() #MyID : {Token t;}
+{
+  t=<IDENTIFIER> { jjtThis.setName(t.image);  return t;}  
+}
+
+
