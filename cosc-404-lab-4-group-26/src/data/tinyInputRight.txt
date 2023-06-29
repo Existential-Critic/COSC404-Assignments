@@ -1,0 +1,7 @@
+2 20 0 0  thisisatuple  
+3 30 0 0  thisisatuple
+4 40 0 0  thisisatuple  
+6 60 0 0  thisisatuple  
+8 80 0 0  thisisatuple  
+9 90 0 0  thisisatuple  
+10 100 0 0  thisisatuple

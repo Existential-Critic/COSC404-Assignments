@@ -1,0 +1,6 @@
+1 1 0 0  thisisatuple  
+2 3 0 0  thisisatuple  
+4 5 0 0  thisisatuple  
+7 7 0 0  thisisatuple  
+8 9 0 0  thisisatuple  
+9 11 0 0  thisisatuple  
